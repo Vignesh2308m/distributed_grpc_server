@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package ledger;
+
+option go_package = "github.com/example/grpc-distributed-ledger/proto";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared messages
+// ─────────────────────────────────────────────────────────────────────────────
+
+message Transaction {
+  string id     = 1;
+  double amount = 2;
+  string label  = 3;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Client  ──►  Leader
+// ─────────────────────────────────────────────────────────────────────────────
+
+message SumRequest {
+  repeated Transaction transactions = 1;
+}
+
+message SumResponse {
+  double total          = 1;
+  int32  num_nodes      = 2;           // how many nodes participated
+  repeated NodeResult node_results = 3; // per-node breakdown
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Leader  ──►  Node
+// ─────────────────────────────────────────────────────────────────────────────
+
+message NodeSumRequest {
+  string node_id                   = 1;
+  repeated Transaction transactions = 2;
+}
+
+message NodeSumResponse {
+  string node_id   = 1;
+  double subtotal  = 2;
+  int32  tx_count  = 3;
+}
+
+// Used in the leader's response back to the client
+message NodeResult {
+  string node_id  = 1;
+  double subtotal = 2;
+  int32  tx_count = 3;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service definitions
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Exposed to external clients
+service LeaderService {
+  rpc SumTransactions(SumRequest) returns (SumResponse);
+}
+
+// Exposed by each worker node; called by the leader only
+service NodeService {
+  rpc SumPartition(NodeSumRequest) returns (NodeSumResponse);
+}
